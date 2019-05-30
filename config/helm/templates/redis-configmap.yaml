@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-configmap
+  labels:
+    chart: {{ template "helm.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  redis.conf: |
+    save ""
+    appendonly no
+    maxmemory-policy allkeys-lru
+    maxmemory {{ .Values.redis.config.maxmemory  }}
+    protected-mode no

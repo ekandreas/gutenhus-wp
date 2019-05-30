@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+  labels:
+    app: redis-deployment
+    chart: {{ template "helm.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-deployment
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        checksum/redis-config: {{ include (print $.Template.BasePath "/redis-configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+      labels:
+        app: redis-deployment
+        release: {{ .Release.Name }}
+    spec:
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: redis-volume
+          configMap:
+            name: redis-configmap
+      containers:
+        - name: redis
+          securityContext:
+            runAsUser: 1000 # non-root user
+            allowPrivilegeEscalation: false
+          image: redis:4
+          command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+          volumeMounts:
+          - name: redis-volume
+            mountPath: /usr/local/etc/redis
+            readOnly: true
+          resources:
+{{ toYaml .Values.redis.resources | indent 12 }}
+          ports:
+            - name: http
+              containerPort: 6379
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 30
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            periodSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+        - name: redis-exporter
+          securityContext:
+            runAsUser: 1000 # non-root user
+            allowPrivilegeEscalation: false
+          image: oliver006/redis_exporter:v0.21.2
+          resources:
+{{ toYaml .Values.redis.exporter.resources | indent 12 }}
+          ports:
+            - name: metrics
+              containerPort: 9121

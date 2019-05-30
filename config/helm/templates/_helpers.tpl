@@ -30,3 +30,7 @@ Create chart name and version as used by the chart label.
 {{- define "helm.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{- define "chart.redisHost" -}}
+{{- printf "redis.%s.svc.cluster.local" .Release.Namespace -}}
+{{- end -}}

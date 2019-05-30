@@ -1,0 +1,10 @@
+redis:
+  config:
+    maxmemory: 32mb
+  exporter:
+    resources:
+      requests:
+        memory: 10Mi
+  resources:
+    requests:
+      memory: 32Mi

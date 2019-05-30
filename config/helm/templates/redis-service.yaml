@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app: redis
+    chart: {{ template "helm.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  selector:
+    app: redis-deployment
+    release: {{ .Release.Name }}
+  ports:
+  - name: http
+    port: 6379
+    protocol: TCP
+  - name: metrics
+    port: 9121
+    protocol: TCP
