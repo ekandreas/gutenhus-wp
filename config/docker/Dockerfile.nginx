@@ -1,0 +1,30 @@
+ARG BUILDER_COMPOSER=composer
+FROM ${BUILDER_COMPOSER} as composer
+
+FROM nginx:1.15.12-alpine
+
+RUN rm -rf /etc/nginx/nginx.conf
+COPY /web /var/www/web
+RUN mv /etc/nginx/mime.types /etc/mime.types
+RUN mv /etc/nginx/fastcgi_params /etc/fastcgi_params
+
+# Composer installed dependencies and plugins
+COPY --from=composer /app/web/app/mu-plugins /var/www/web/app/mu-plugins
+COPY --from=composer /app/web/app/plugins /var/www/web/app/plugins
+COPY --from=composer /app/web/wp /var/www/web/wp
+
+WORKDIR /var/www/web
+
+# Make container run as non-root (docker friendly)
+RUN mkdir -p /var/log/nginx
+RUN mkdir -p /var/cache/nginx
+
+RUN touch /var/run/nginx.pid && \
+  chown 1000:1000 /var/run/nginx.pid && \
+  chown -R 1000:1000 /var/cache/nginx && \
+  chown -R 1000:1000 /var/log/nginx && \
+  chmod -R 777 /var/log/nginx /var/cache/nginx
+
+USER 1000:1000
+
+EXPOSE 8080

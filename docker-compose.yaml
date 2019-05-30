@@ -1,0 +1,77 @@
+version: '2.3'
+services:
+  composer:
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.composer
+      target: composer
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+    depends_on:
+      - mysql
+  mysql:
+    image: mysql:5.7
+    volumes:
+      - ./.data/db:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --sql-mode="STRICT_TRANS_TABLES"
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: mysql
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+  redis:
+    user: "1000:1000"
+    image: redis:4
+    restart: always
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./config/docker/development-redis.conf:/usr/local/etc/redis/redis.conf
+  web:
+    user: "1000:1000"
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.web
+      args:
+        BUILDER_COMPOSER: gutenhus-wp_composer
+    ports:
+      - "9000:9000"
+    environment:
+      DB_NAME: wordpress
+      DB_USER: mysql
+      DB_PASSWORD: password
+      DB_HOST: mysql
+      DB_PREFIX: wp_
+      WP_ENV: development
+      COOKIE_DOMAIN: local.gutenhus-wp.se
+      WP_HOME: http://local.gutenhus-wp.se
+      WP_SITEURL: http://local.gutenhus-wp.se
+    volumes:
+      - ./web:/var/www/web
+      - ./config:/var/www/config
+      - ./vendor:/var/www/vendor
+      - ./config/docker/development-php.ini:/usr/local/etc/php/php.ini
+      - ./config/docker/development-phpfpm.conf:/usr/local/etc/php-fpm.d/zz-docker.conf
+  nginx:
+    user: "1000:1000"
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.nginx
+      args:
+        BUILDER_COMPOSER: gutenhus-wp_composer
+    depends_on:
+      - redis
+      - mysql
+      - web
+    ports:
+      - "80:8080"
+    volumes:
+      - ./web:/var/www/web
+      - ./config/docker/development-nginx.conf:/etc/nginx/nginx.conf
